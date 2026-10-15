@@ -22,6 +22,10 @@ function toPublicUser(record: {
 }
 
 export const usersService = {
+  listAssignees() {
+    return usersRepository.list();
+  },
+
   async getProfile(userId: string) {
     const record = await usersRepository.findById(userId);
     if (!record) return null;

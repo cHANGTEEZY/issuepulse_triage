@@ -11,6 +11,7 @@ import {
 } from "./config/env";
 import { registerOpenApiDocs } from "./docs/openapi";
 import { authRoutes } from "./modules/auth/auth.routes";
+import { githubWebhookRoutes } from "./modules/github/github.routes";
 import { healthRoutes } from "./modules/health/health.routes";
 import { apiV1Router } from "./modules/v1.routes";
 import { requestLogger } from "./middleware/request-logger";
@@ -49,6 +50,7 @@ app.use("*", compress());
 app.use("*", sessionMiddleware);
 
 app.route("/api/auth", authRoutes);
+app.route("/api/webhooks/github", githubWebhookRoutes);
 app.route("/health", healthRoutes);
 app.route("/api/v1", apiV1Router);
 

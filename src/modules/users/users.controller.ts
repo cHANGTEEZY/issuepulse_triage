@@ -50,4 +50,19 @@ export const usersController = {
       requestId: c.get("requestId"),
     });
   },
+
+  async list(c: UsersContext) {
+    const decision = await ajApi.protect(c.req.raw, {
+      correlationId: c.get("requestId"),
+    });
+    const denied = handleArcjetDecision(c, decision);
+    if (denied) return denied;
+
+    const data = await usersService.listAssignees();
+    return c.json({
+      success: true,
+      data,
+      requestId: c.get("requestId"),
+    });
+  },
 };

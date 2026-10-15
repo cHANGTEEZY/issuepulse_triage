@@ -70,6 +70,10 @@ const envSchema = z.object({
   ARCJET_ENV: z.enum(["development", "production"]).default("development"),
   GITHUB_CLIENT_ID: z.string().min(1),
   GITHUB_CLIENT_SECRET: z.string().min(1),
+  GITHUB_APP_ID: z.string().default(""),
+  GITHUB_APP_SLUG: z.string().default(""),
+  GITHUB_PRIVATE_KEY: z.string().default(""),
+  GITHUB_WEBHOOK_SECRET: z.string().default(""),
 });
 
 const raw = envSchema.parse(process.env);

@@ -17,13 +17,14 @@
 
 ## Overview
 
-This boilerplate gives you a typed, secure API foundation without rebuilding the same infrastructure on every project. It ships with email/password authentication, database migrations, CORS configured for SPAs, structured logging, and runtime security — so you can focus on your product logic.
+This API is the IssueNest backend: Better Auth GitHub sign-in, a GitHub App for repository access, verified webhooks, and a Turso store for issues plus local triage. The TanStack Start app talks to it with a session cookie.
 
 ### Features
 
 - **Fast runtime** — [Bun](https://bun.sh) for dev, build, test, and production
 - **Lightweight framework** — [Hono](https://hono.dev) with middleware, CORS, and secure headers
-- **Authentication** — [Better Auth](https://www.better-auth.com) with Drizzle adapter and session middleware
+- **Authentication** — [Better Auth](https://www.better-auth.com) GitHub OAuth and session cookies
+- **GitHub App** — installation tokens, signed webhooks, and issue sync
 - **Database** — [Turso](https://turso.tech) (libSQL) + [Drizzle ORM](https://orm.drizzle.team) with migration workflow
 - **Security** — [Arcjet](https://arcjet.com) shield, rate limiting, and signup abuse protection
 - **API docs** — Scalar API reference at `/docs`
@@ -100,6 +101,9 @@ The API listens at **http://localhost:3000** by default.
 | --- | --- |
 | `GET /health` | Health check |
 | `GET /api/v1/users/me` | Current user profile (auth required) |
+| `GET /api/v1/users` | Users that can own a triage item |
+| `GET /api/v1/issues` | Triage feed |
+| `POST /api/webhooks/github` | GitHub App webhook |
 | `GET/POST /api/auth/*` | Better Auth handlers |
 | `GET /docs` | Scalar API reference |
 
@@ -123,6 +127,12 @@ All variables are validated at startup via Zod in `src/config/env.ts`. Bun loads
 | `BETTER_AUTH_SECRET` | **Yes** | Min 32 chars — encryption & hashing |
 | `ARCJET_KEY` | **Yes** | Arcjet site key from [app.arcjet.com](https://app.arcjet.com) |
 | `ARCJET_ENV` | No | `development` \| `production` (default: `development`) |
+| `GITHUB_CLIENT_ID` | **Yes** | GitHub OAuth app client id for Better Auth |
+| `GITHUB_CLIENT_SECRET` | **Yes** | GitHub OAuth app client secret |
+| `GITHUB_APP_ID` | Sync and webhooks | GitHub App id |
+| `GITHUB_APP_SLUG` | Install URL | App slug in `https://github.com/apps/<slug>` |
+| `GITHUB_PRIVATE_KEY` | Sync | App private key. Server only |
+| `GITHUB_WEBHOOK_SECRET` | Webhooks | HMAC secret for `X-Hub-Signature-256`. Server only |
 
 See [`.env.example`](.env.example) for a full template.
 
@@ -130,26 +140,13 @@ See [`.env.example`](.env.example) for a full template.
 
 ## Authentication (Better Auth)
 
-Auth is configured in [`src/modules/auth/auth.service.ts`](src/modules/auth/auth.service.ts) with the Drizzle adapter and email/password enabled.
+Auth is configured in [`src/modules/auth/auth.service.ts`](src/modules/auth/auth.service.ts) with the Drizzle adapter. Email and password are disabled. Users sign in with GitHub OAuth (`GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET`). The callback is `http://localhost:3000/api/auth/callback/github`.
 
-### Auth routes
-
-Better Auth is mounted at `/api/auth/*`. Common endpoints:
+The session cookie is `better-auth.session_token`. The TanStack app on `http://localhost:5173` sends it with `credentials: include`.
 
 ```bash
-# Sign up
-curl -X POST http://localhost:3000/api/auth/sign-up/email \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Jane","email":"jane@example.com","password":"secure-password"}'
-
-# Sign in
-curl -X POST http://localhost:3000/api/auth/sign-in/email \
-  -H "Content-Type: application/json" \
-  -d '{"email":"jane@example.com","password":"secure-password"}'
-
-# Get session
 curl http://localhost:3000/api/auth/get-session \
-  -H "Cookie: <session-cookie>"
+  -H "Cookie: better-auth.session_token=<token>"
 ```
 
 ### Protecting routes
@@ -187,8 +184,11 @@ src/db/
 ├── index.ts              # Drizzle client + libSQL
 └── schema/
     ├── index.ts          # Re-exports all tables
-    └── auth.ts           # Better Auth tables (generated)
+    ├── auth.ts           # Better Auth tables (generated)
+    └── github.ts         # Installations, issues, labels, triage
 ```
+
+GitHub rows and triage rows are separate. Webhook and sync upserts write `github_issues` and `issue_labels`, and insert a blank `triage` row only when one does not exist. Status, priority, owner, and notes are never replaced by GitHub.
 
 ### Commands
 
@@ -201,6 +201,46 @@ src/db/
 | `bun run db:studio` | Open Drizzle Studio |
 
 ---
+
+## GitHub App
+
+Create a GitHub App and set `GITHUB_APP_ID`, `GITHUB_APP_SLUG`, `GITHUB_PRIVATE_KEY`, and `GITHUB_WEBHOOK_SECRET` in `.env.local`. The private key and webhook secret never go to the frontend.
+
+### Permissions
+
+| Permission | Access |
+| --- | --- |
+| Issues | Read |
+| Metadata | Read |
+
+Subscribe to these installation webhooks:
+
+- `issues`
+- `issue_comment`
+- `installation`
+- `installation_repositories`
+
+`POST /api/webhooks/github` is mounted outside auth and Arcjet. It reads the raw body, checks `X-Hub-Signature-256` with `crypto.timingSafeEqual`, then parses JSON. A repeated `X-GitHub-Delivery` id returns 200 without writing again. Handled events:
+
+- `issues`: opened, edited, closed, reopened, labeled, unlabeled. A `pull_request` object is stored as `is_pull_request`.
+- `issue_comment`: updates the issue activity time only.
+- `installation` and `installation_repositories`: created, added, and removed. A newly installed repository starts a detached sync.
+
+`GET /api/v1/repositories/install-url` returns `https://github.com/apps/<slug>/installations/new`. Authenticated `POST /api/v1/repositories/:id/sync` pages `GET /repos/{owner}/{repo}/issues?state=all&per_page=100`, follows `Link` headers, and backs off on `x-ratelimit-remaining` / `retry-after`.
+
+### Local webhook forwarding
+
+GitHub cannot reach `localhost` directly. Forward a public URL to the API:
+
+```bash
+# Cloudflare Tunnel
+cloudflared tunnel --url http://localhost:3000
+
+# or ngrok
+ngrok http 3000
+```
+
+Set the App webhook URL to `https://<public-host>/api/webhooks/github` and use the same `GITHUB_WEBHOOK_SECRET` locally and in the App settings.
 
 ## Security (Arcjet)
 
@@ -251,6 +291,7 @@ Set the key in `.env.local` as `ARCJET_KEY=ajkey_...`.
 │       ├── auth/            # Better Auth module
 │       ├── health/          # Health check module
 │       ├── users/           # Users module
+│       ├── github/          # App tokens, webhooks, sync, triage
 │       └── v1.routes.ts     # API v1 route aggregator
 ├── test/                    # Bun test suite
 ├── .env.example

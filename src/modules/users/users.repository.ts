@@ -12,4 +12,16 @@ export const usersRepository = {
 
     return record ?? null;
   },
+
+  async list() {
+    return db
+      .select({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        image: user.image,
+      })
+      .from(user)
+      .orderBy(user.name);
+  },
 };
