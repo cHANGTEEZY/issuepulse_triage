@@ -41,6 +41,61 @@ githubRoutes.get(
 );
 
 githubRoutes.post(
+  "/refresh",
+  requireAuth(),
+  describeRoute({
+    tags: ["GitHub"],
+    summary: "Refresh repositories from the GitHub App installation",
+    ...authed,
+  }),
+  (c) => githubController.refreshRepositories(c),
+);
+
+githubRoutes.get(
+  "/:id",
+  requireAuth(),
+  describeRoute({
+    tags: ["GitHub"],
+    summary: "Repository overview from GitHub",
+    ...authed,
+  }),
+  (c) => githubController.repositoryOverview(c),
+);
+
+githubRoutes.get(
+  "/:id/commits",
+  requireAuth(),
+  describeRoute({
+    tags: ["GitHub"],
+    summary: "Recent commits on the default branch",
+    ...authed,
+  }),
+  (c) => githubController.repositoryCommits(c),
+);
+
+githubRoutes.get(
+  "/:id/contents",
+  requireAuth(),
+  describeRoute({
+    tags: ["GitHub"],
+    summary: "Files and folders at a path",
+    ...authed,
+  }),
+  (c) => githubController.repositoryContents(c),
+);
+
+githubRoutes.get(
+  "/:id/pulls",
+  requireAuth(),
+  describeRoute({
+    tags: ["GitHub"],
+    summary: "Pull requests",
+    ...authed,
+  }),
+  (c) => githubController.repositoryPulls(c),
+);
+
+githubRoutes.post(
   "/:id/sync",
   requireAuth(),
   describeRoute({

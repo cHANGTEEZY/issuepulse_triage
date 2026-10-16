@@ -40,6 +40,12 @@ export const repositories = sqliteTable(
     installationId: text("installation_id")
       .notNull()
       .references(() => githubInstallations.id, { onDelete: "cascade" }),
+    isPrivate: integer("is_private", { mode: "boolean" }).default(false).notNull(),
+    description: text("description"),
+    defaultBranch: text("default_branch"),
+    language: text("language"),
+    openIssues: integer("open_issues").default(0).notNull(),
+    pushedAt: integer("pushed_at", { mode: "timestamp_ms" }),
     lastSyncedAt: integer("last_synced_at", { mode: "timestamp_ms" }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),

@@ -5,6 +5,7 @@ import { ajApi } from "../../shared/utils/arcjet";
 import { handleArcjetDecision } from "../../shared/utils/arcjet-deny";
 import type { AppVariables } from "../../shared/types/app.types";
 import { githubAppConfigured } from "./github.app";
+import { GithubBrowseError, githubBrowse } from "./github.browse";
 import { githubRepository } from "./github.repository";
 import { githubService } from "./github.service";
 import { verifyGithubSignature } from "./github.signature";
@@ -29,6 +30,67 @@ async function guard(c: GithubContext) {
     correlationId: c.get("requestId"),
   });
   return handleArcjetDecision(c, decision);
+}
+
+async function browse<T>(
+  c: GithubContext,
+  load: (id: string) => Promise<T | null>,
+) {
+  const denied = await guard(c);
+  if (denied) return denied;
+  if (!githubAppConfigured()) {
+    return c.json(
+      {
+        success: false,
+        error: {
+          code: "GITHUB_APP_NOT_CONFIGURED",
+          message: "GitHub App credentials are required to read repositories",
+        },
+        requestId: c.get("requestId"),
+      },
+      503,
+    );
+  }
+
+  const id = c.req.param("id");
+  if (!id) {
+    return c.json(
+      {
+        success: false,
+        error: { code: "NOT_FOUND", message: "Repository not found" },
+        requestId: c.get("requestId"),
+      },
+      404,
+    );
+  }
+
+  try {
+    const data = await load(id);
+    if (data == null) {
+      return c.json(
+        {
+          success: false,
+          error: { code: "NOT_FOUND", message: "Repository not found" },
+          requestId: c.get("requestId"),
+        },
+        404,
+      );
+    }
+    return c.json({ success: true, data, requestId: c.get("requestId") });
+  } catch (error) {
+    const status = error instanceof GithubBrowseError ? error.status : 502;
+    return c.json(
+      {
+        success: false,
+        error: {
+          code: "GITHUB_READ_FAILED",
+          message: error instanceof Error ? error.message : "GitHub request failed",
+        },
+        requestId: c.get("requestId"),
+      },
+      status === 403 || status === 404 ? 403 : 502,
+    );
+  }
 }
 
 function priorities(value: string | undefined) {
@@ -90,6 +152,42 @@ export const githubController = {
       );
     }
     return c.json({ success: true, data: { url }, requestId: c.get("requestId") });
+  },
+
+  async refreshRepositories(c: GithubContext) {
+    const denied = await guard(c);
+    if (denied) return denied;
+    if (!githubAppConfigured()) {
+      return c.json(
+        {
+          success: false,
+          error: {
+            code: "GITHUB_APP_NOT_CONFIGURED",
+            message: "GitHub App credentials are required to refresh repositories",
+          },
+          requestId: c.get("requestId"),
+        },
+        503,
+      );
+    }
+
+    try {
+      await githubService.refreshConnectedRepositories();
+      const data = await githubService.listRepositories();
+      return c.json({ success: true, data, requestId: c.get("requestId") });
+    } catch (error) {
+      return c.json(
+        {
+          success: false,
+          error: {
+            code: "REFRESH_FAILED",
+            message: error instanceof Error ? error.message : "Refresh failed",
+          },
+          requestId: c.get("requestId"),
+        },
+        502,
+      );
+    }
   },
 
   async listRepositories(c: GithubContext) {
@@ -156,6 +254,23 @@ export const githubController = {
         502,
       );
     }
+  },
+
+  repositoryOverview(c: GithubContext) {
+    return browse(c, (id) => githubBrowse.overview(id));
+  },
+
+  repositoryCommits(c: GithubContext) {
+    return browse(c, (id) => githubBrowse.commits(id));
+  },
+
+  repositoryContents(c: GithubContext) {
+    const path = c.req.query("path") ?? "";
+    return browse(c, (id) => githubBrowse.contents(id, path));
+  },
+
+  repositoryPulls(c: GithubContext) {
+    return browse(c, (id) => githubBrowse.pulls(id));
   },
 
   async summary(c: GithubContext) {

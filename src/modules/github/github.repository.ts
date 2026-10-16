@@ -14,6 +14,7 @@ import type {
   GithubLabel,
   IssueRecord,
   IssueSummary,
+  RepositoryMetadata,
   RepositoryRecord,
   TriagePriority,
   TriageStatus,
@@ -91,7 +92,19 @@ export const githubRepository = {
     owner: string;
     name: string;
     installationRowId: string;
+    metadata?: RepositoryMetadata;
   }) {
+    const metadata = input.metadata
+      ? {
+          isPrivate: input.metadata.isPrivate,
+          description: input.metadata.description,
+          defaultBranch: input.metadata.defaultBranch,
+          language: input.metadata.language,
+          openIssues: input.metadata.openIssues,
+          pushedAt: input.metadata.pushedAt,
+        }
+      : {};
+
     await db
       .insert(repositories)
       .values({
@@ -100,6 +113,7 @@ export const githubRepository = {
         owner: input.owner,
         name: input.name,
         installationId: input.installationRowId,
+        ...metadata,
       })
       .onConflictDoUpdate({
         target: repositories.githubRepoId,
@@ -107,6 +121,7 @@ export const githubRepository = {
           owner: input.owner,
           name: input.name,
           installationId: input.installationRowId,
+          ...metadata,
           updatedAt: new Date(),
         },
       });
@@ -154,17 +169,27 @@ export const githubRepository = {
     return row ?? null;
   },
 
+  async listInstallations() {
+    return db.select().from(githubInstallations);
+  },
+
   async listRepositories(): Promise<RepositoryRecord[]> {
     const rows = await db
       .select()
       .from(repositories)
-      .orderBy(repositories.owner, repositories.name);
+      .orderBy(desc(repositories.lastSyncedAt), repositories.name);
 
     return rows.map((row) => ({
       id: row.id,
       githubRepoId: row.githubRepoId,
       owner: row.owner,
       name: row.name,
+      isPrivate: row.isPrivate,
+      description: row.description,
+      defaultBranch: row.defaultBranch,
+      language: row.language,
+      openIssues: row.openIssues,
+      pushedAt: row.pushedAt?.toISOString() ?? null,
       lastSyncedAt: row.lastSyncedAt?.toISOString() ?? null,
     }));
   },

@@ -1,11 +1,12 @@
 import { logger } from "../../shared/utils/logger";
 import { githubRepository } from "./github.repository";
 import { syncRepository } from "./github.sync";
-import type {
-  InstallationEvent,
-  InstallationRepositoriesEvent,
-  IssueCommentEvent,
-  IssuesEvent,
+import {
+  repositoryMetadata,
+  type InstallationEvent,
+  type InstallationRepositoriesEvent,
+  type IssueCommentEvent,
+  type IssuesEvent,
 } from "./github.types";
 
 async function saveInstallation(
@@ -27,6 +28,7 @@ async function saveInstallation(
       owner: githubRepository.repoOwner(repo.full_name, accountLogin),
       name: repo.name,
       installationRowId: saved.id,
+      metadata: repositoryMetadata(repo),
     });
     if (row) stored.push(row);
   }

@@ -3,7 +3,7 @@ import { db } from "../../db";
 import { user } from "../../db/schema/auth";
 import { installUrl } from "./github.app";
 import { githubRepository } from "./github.repository";
-import { syncRepository } from "./github.sync";
+import { refreshConnectedRepositories, syncRepository } from "./github.sync";
 import type { TriagePriority, TriageStatus } from "./github.types";
 
 export const githubService = {
@@ -19,6 +19,7 @@ export const githubService = {
   }) => githubRepository.listIssues(filters),
   getIssue: (issueId: string) => githubRepository.getIssue(issueId),
   sync: (repositoryId: string) => syncRepository(repositoryId),
+  refreshConnectedRepositories,
   async updateTriage(
     issueId: string,
     patch: {

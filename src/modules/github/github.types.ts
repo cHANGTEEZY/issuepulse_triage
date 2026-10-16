@@ -31,7 +31,33 @@ export type GithubRepository = {
   id: number;
   name: string;
   full_name?: string;
+  private?: boolean;
+  description?: string | null;
+  default_branch?: string;
+  language?: string | null;
+  open_issues_count?: number;
+  pushed_at?: string | null;
 };
+
+export type RepositoryMetadata = {
+  isPrivate: boolean;
+  description: string | null;
+  defaultBranch: string | null;
+  language: string | null;
+  openIssues: number;
+  pushedAt: Date | null;
+};
+
+export function repositoryMetadata(repo: GithubRepository): RepositoryMetadata {
+  return {
+    isPrivate: repo.private ?? false,
+    description: repo.description ?? null,
+    defaultBranch: repo.default_branch ?? null,
+    language: repo.language ?? null,
+    openIssues: repo.open_issues_count ?? 0,
+    pushedAt: repo.pushed_at ? new Date(repo.pushed_at) : null,
+  };
+}
 
 export type GithubIssue = {
   id: number;
@@ -121,6 +147,12 @@ export type RepositoryRecord = {
   githubRepoId: number;
   owner: string;
   name: string;
+  isPrivate: boolean;
+  description: string | null;
+  defaultBranch: string | null;
+  language: string | null;
+  openIssues: number;
+  pushedAt: string | null;
   lastSyncedAt: string | null;
 };
 
@@ -128,4 +160,51 @@ export type IssueSummary = {
   untriaged: number;
   highPriority: number;
   stale: number;
+};
+
+export type RepositoryOverview = RepositoryRecord & {
+  fullName: string;
+  description: string | null;
+  defaultBranch: string;
+  private: boolean;
+  htmlUrl: string;
+  language: string | null;
+  stars: number;
+  forks: number;
+  openIssues: number;
+  pushedAt: string | null;
+};
+
+export type RepositoryCommit = {
+  sha: string;
+  shortSha: string;
+  message: string;
+  authorName: string;
+  authorLogin: string | null;
+  authorAvatarUrl: string | null;
+  date: string | null;
+  htmlUrl: string;
+};
+
+export type RepositoryEntry = {
+  name: string;
+  path: string;
+  type: "dir" | "file" | "symlink" | "submodule";
+  size: number;
+  htmlUrl: string | null;
+};
+
+export type RepositoryPull = {
+  number: number;
+  title: string;
+  state: "open" | "closed";
+  merged: boolean;
+  draft: boolean;
+  authorLogin: string;
+  authorAvatarUrl: string | null;
+  headRef: string;
+  baseRef: string;
+  htmlUrl: string;
+  createdAt: string;
+  updatedAt: string;
 };

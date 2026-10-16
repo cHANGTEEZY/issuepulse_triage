@@ -15,6 +15,13 @@
       "when": 1792080000000,
       "tag": "0001_issuenest_github",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1792124769455,
+      "tag": "0002_repository_metadata",
+      "breakpoints": true
     }
   ]
 }
