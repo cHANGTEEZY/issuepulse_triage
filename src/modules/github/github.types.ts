@@ -194,6 +194,144 @@ export type RepositoryEntry = {
   htmlUrl: string | null;
 };
 
+export type RepositoryTreeEntry = {
+  path: string;
+  type: "dir" | "file" | "submodule";
+  size: number;
+};
+
+export type RepositoryTree = {
+  truncated: boolean;
+  entries: RepositoryTreeEntry[];
+};
+
+export type GithubPerson = {
+  login: string;
+  avatarUrl: string | null;
+};
+
+export type IssueComment = {
+  id: number;
+  body: string;
+  author: GithubPerson;
+  createdAt: string;
+  updatedAt: string;
+  htmlUrl: string;
+};
+
+export type IssueThread = {
+  state: "open" | "closed";
+  stateReason: string | null;
+  assignees: GithubPerson[];
+  labels: IssueLabel[];
+  comments: IssueComment[];
+};
+
+export type RepositoryLabel = {
+  name: string;
+  color: string;
+  description: string | null;
+};
+
+export type RepositoryFile = {
+  name: string;
+  path: string;
+  sha: string;
+  size: number;
+  ref: string;
+  binary: boolean;
+  tooLarge: boolean;
+  content: string | null;
+  htmlUrl: string | null;
+};
+
+export type RepositoryBranch = {
+  name: string;
+  sha: string;
+  protected: boolean;
+  isDefault: boolean;
+};
+
+export type CommitResult = {
+  commitSha: string;
+  fileSha: string;
+  branch: string;
+  htmlUrl: string;
+};
+
+export type PullReview = {
+  id: number;
+  state: string;
+  body: string;
+  author: GithubPerson;
+  submittedAt: string | null;
+};
+
+export type PullDetail = {
+  number: number;
+  title: string;
+  body: string;
+  state: "open" | "closed";
+  merged: boolean;
+  mergeable: boolean | null;
+  mergeableState: string | null;
+  draft: boolean;
+  author: GithubPerson;
+  headRef: string;
+  headSha: string;
+  baseRef: string;
+  additions: number;
+  deletions: number;
+  changedFiles: number;
+  commits: number;
+  htmlUrl: string;
+  createdAt: string;
+  updatedAt: string;
+  reviews: PullReview[];
+};
+
+export type CheckRun = {
+  id: number;
+  name: string;
+  status: string;
+  conclusion: string | null;
+  htmlUrl: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+};
+
+export type CommitStatus = {
+  id: number;
+  context: string;
+  state: string;
+  description: string | null;
+  targetUrl: string | null;
+  createdAt: string;
+};
+
+export type CommitChecks = {
+  sha: string;
+  state: string;
+  checkRuns: CheckRun[];
+  statuses: CommitStatus[];
+};
+
+export type WorkflowRun = {
+  id: number;
+  name: string;
+  title: string;
+  event: string;
+  status: string;
+  conclusion: string | null;
+  branch: string;
+  headSha: string;
+  runNumber: number;
+  actor: GithubPerson;
+  htmlUrl: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type RepositoryPull = {
   number: number;
   title: string;

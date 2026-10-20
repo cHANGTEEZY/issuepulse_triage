@@ -6,8 +6,6 @@ import { healthDocs } from "./health.docs";
 
 export const healthRoutes = new Hono<{ Variables: AppVariables }>();
 
-healthRoutes.get(
-  "/",
-  describeRoute(healthDocs.getHealth),
-  (c) => healthController.getHealth(c),
+healthRoutes.get("/", describeRoute(healthDocs.getHealth), (c) =>
+  healthController.getHealth(c),
 );

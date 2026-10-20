@@ -6,6 +6,7 @@ import type {
   RepositoryEntry,
   RepositoryOverview,
   RepositoryPull,
+  RepositoryTree,
 } from "./github.types";
 
 export class GithubBrowseError extends Error {
@@ -22,6 +23,7 @@ type Located = {
   owner: string;
   name: string;
   githubRepoId: number;
+  defaultBranch: string | null;
   lastSyncedAt: Date | null;
   token: string;
 };
@@ -35,6 +37,7 @@ async function locate(repositoryId: string): Promise<Located | null> {
     owner: found.repository.owner,
     name: found.repository.name,
     githubRepoId: found.repository.githubRepoId,
+    defaultBranch: found.repository.defaultBranch,
     lastSyncedAt: found.repository.lastSyncedAt,
     token,
   };
@@ -169,6 +172,45 @@ export const githubBrowse = {
         if (a.type !== b.type) return a.type === "dir" ? -1 : 1;
         return a.name.localeCompare(b.name);
       });
+  },
+
+  async tree(repositoryId: string, ref = ""): Promise<RepositoryTree | null> {
+    const located = await locate(repositoryId);
+    if (!located) return null;
+    const branch =
+      ref ||
+      located.defaultBranch ||
+      (
+        await readJson<GithubRepo>(
+          `${API}/repos/${located.owner}/${located.name}`,
+          located.token,
+        )
+      ).default_branch;
+    const response = await githubFetch(
+      `${API}/repos/${located.owner}/${located.name}/git/trees/${encodeURIComponent(branch)}?recursive=1`,
+      located.token,
+    );
+    if (response.status === 409) return { truncated: false, entries: [] };
+    if (!response.ok) {
+      const message =
+        response.status === 403 || response.status === 404
+          ? "GitHub denied this request. The app installation may need the Contents and Pull requests read permissions."
+          : `GitHub request failed (${response.status})`;
+      throw new GithubBrowseError(response.status, message);
+    }
+    const body = (await response.json()) as {
+      truncated?: boolean;
+      tree?: Array<{ path?: string; type?: string; size?: number }>;
+    };
+    return {
+      truncated: body.truncated === true,
+      entries: (body.tree ?? []).flatMap((item) => {
+        if (!item.path) return [];
+        const type =
+          item.type === "tree" ? "dir" : item.type === "commit" ? "submodule" : "file";
+        return [{ path: item.path, type, size: item.size ?? 0 }];
+      }),
+    };
   },
 
   async pulls(repositoryId: string): Promise<RepositoryPull[] | null> {

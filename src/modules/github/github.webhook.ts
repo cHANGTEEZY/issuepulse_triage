@@ -44,10 +44,16 @@ export async function handleGithubEvent(event: string, payload: unknown) {
       return;
     }
     if (body.action === "created") {
-      const repos = await saveInstallation(body.installation, body.repositories);
+      const repos = await saveInstallation(
+        body.installation,
+        body.repositories,
+      );
       for (const repo of repos) {
         void syncRepository(repo.id).catch((error: unknown) => {
-          logger.error({ err: error, repositoryId: repo.id }, "install sync failed");
+          logger.error(
+            { err: error, repositoryId: repo.id },
+            "install sync failed",
+          );
         });
       }
     }
@@ -64,7 +70,10 @@ export async function handleGithubEvent(event: string, payload: unknown) {
       );
       for (const repo of repos) {
         void syncRepository(repo.id).catch((error: unknown) => {
-          logger.error({ err: error, repositoryId: repo.id }, "install sync failed");
+          logger.error(
+            { err: error, repositoryId: repo.id },
+            "install sync failed",
+          );
         });
       }
       return;
@@ -87,7 +96,12 @@ export async function handleGithubEvent(event: string, payload: unknown) {
       "labeled",
       "unlabeled",
     ]);
-    if (!body.action || !handled.has(body.action) || !body.issue || !body.repository) {
+    if (
+      !body.action ||
+      !handled.has(body.action) ||
+      !body.issue ||
+      !body.repository
+    ) {
       return;
     }
     const repository = await githubRepository.findRepositoryByGithubId(

@@ -11,7 +11,8 @@ export const healthDocs = {
   getHealth: {
     tags: healthTags,
     summary: "Health check",
-    description: "Returns service health status. Used by load balancers and Docker.",
+    description:
+      "Returns service health status. Used by load balancers and Docker.",
     responses: {
       200: {
         description: "Service is healthy",

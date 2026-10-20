@@ -18,9 +18,6 @@ usersRoutes.get(
   (c) => usersController.list(c),
 );
 
-usersRoutes.get(
-  "/me",
-  requireAuth(),
-  describeRoute(usersDocs.getMe),
-  (c) => usersController.getMe(c),
+usersRoutes.get("/me", requireAuth(), describeRoute(usersDocs.getMe), (c) =>
+  usersController.getMe(c),
 );

@@ -269,6 +269,11 @@ export const githubController = {
     return browse(c, (id) => githubBrowse.contents(id, path));
   },
 
+  repositoryTree(c: GithubContext) {
+    const ref = c.req.query("ref") ?? "";
+    return browse(c, (id) => githubBrowse.tree(id, ref));
+  },
+
   repositoryPulls(c: GithubContext) {
     return browse(c, (id) => githubBrowse.pulls(id));
   },

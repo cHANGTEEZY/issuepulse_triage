@@ -127,8 +127,8 @@ All variables are validated at startup via Zod in `src/config/env.ts`. Bun loads
 | `BETTER_AUTH_SECRET` | **Yes** | Min 32 chars — encryption & hashing |
 | `ARCJET_KEY` | **Yes** | Arcjet site key from [app.arcjet.com](https://app.arcjet.com) |
 | `ARCJET_ENV` | No | `development` \| `production` (default: `development`) |
-| `GITHUB_CLIENT_ID` | **Yes** | GitHub OAuth app client id for Better Auth |
-| `GITHUB_CLIENT_SECRET` | **Yes** | GitHub OAuth app client secret |
+| `GITHUB_CLIENT_ID` | **Yes** | GitHub App client id, used by Better Auth sign-in |
+| `GITHUB_CLIENT_SECRET` | **Yes** | GitHub App client secret |
 | `GITHUB_APP_ID` | Sync and webhooks | GitHub App id |
 | `GITHUB_APP_SLUG` | Install URL | App slug in `https://github.com/apps/<slug>` |
 | `GITHUB_PRIVATE_KEY` | Sync | App private key. Server only |
@@ -208,10 +208,29 @@ Create a GitHub App and set `GITHUB_APP_ID`, `GITHUB_APP_SLUG`, `GITHUB_PRIVATE_
 
 ### Permissions
 
-| Permission | Access |
-| --- | --- |
-| Issues | Read |
-| Metadata | Read |
+| Permission | Access | Used for |
+| --- | --- | --- |
+| Metadata | Read | Required by GitHub |
+| Issues | Read and write | Sync, comments, close and reopen, labels, assignees |
+| Contents | Read and write | File browser, commits from the editor, new branches |
+| Pull requests | Read and write | Open, edit, review, and merge pull requests |
+| Commit statuses | Read and write | Post a status on a commit |
+| Checks | Read | Check runs on a commit |
+| Actions | Read and write | List workflow runs and re-run one |
+| Workflows | Read and write | Commit changes to files under `.github/workflows` |
+
+### Writes as the signed-in user
+
+Sync, webhooks, and read routes use the installation token. Every write (comment, label, commit, pull request, review, merge, status, re-run) uses the signed-in person's GitHub token, so GitHub shows their name on the change. The token comes from the Better Auth `account` row through `auth.api.getAccessToken`, which refreshes it before it expires.
+
+For this to work, sign-in has to use the GitHub App itself:
+
+1. In the GitHub App settings, turn on **Request user authorization (OAuth) during installation** and keep **Expire user authorization tokens** on.
+2. Add the callback URL `{BETTER_AUTH_URL}/api/auth/callback/github`.
+3. Set `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` to the GitHub App's client id and a client secret generated on the App page.
+4. Restart the API and sign in again. Write routes return `401` with code `GITHUB_RECONNECT` when the stored token is missing, expired without a refresh token, or rejected by GitHub. The frontend shows **Reconnect GitHub** for that code.
+
+A user token can only do what both the App permissions and the person's own repository access allow.
 
 Subscribe to these installation webhooks:
 
